@@ -16,26 +16,28 @@ if [[ -t 1 ]]; then
   COLOR_BLUE_BOLD=$(echo -e "\e[1;34m")
   COLOR_CYAN_BOLD=$(echo -e "\e[1;36m")
   COLOR_GREEN_BOLD=$(echo -e "\e[1;32m")
+  COLOR_WHITE_BOLD=$(echo -e "\e[1;37m")
   COLOR_RESET=$(echo -e "\e[0m")
 fi
 
 usage() {
   echo "usage:" >&2
-  echo "  $0 [-f] [-n] [-a] [DAYS] -- show TODOs for next DAYS" >&2
+  echo "  $0 [-f] [-n] [-a] [-q] [DAYS] -- show TODOs for next DAYS" >&2
   echo "     -n print the id for each entry" >&2
   echo "     -f always prints the full date" >&2
   echo "     -a show all (including done)" >&2
+  echo "     -q be quiet (do not print the current day of the week)" >&2
   echo "" >&2
-  echo "  $0 -m [UNTIL] MSG   -- add TODO" >&2
+  echo "  $0 -m [UNTIL] MSG             -- add TODO" >&2
   echo "     UNTIL could be:" >&2
   echo "       DD[-MM[-YY]]   until date" >&2
   echo "       +N{d|w|m|y}    until today + N days/weeks/months/years" >&2
   echo "       [+]0           until the end of a day" >&2
   echo "       {mon[day]|...} until the next day of the week" >&2
   echo "" >&2
-  echo "  $0 -d ID            -- mark TODO done by ID " >&2
+  echo "  $0 -d ID                      -- mark TODO done by ID " >&2
   echo "" >&2
-  echo "  $0 -r ID            -- remove TODO with by ID" >&2
+  echo "  $0 -r ID                      -- remove TODO with by ID" >&2
 }
 
 invalid_usage() {
@@ -140,7 +142,6 @@ todo_pretty() {
   LINE_RE='^([0-9]+)\s*([-0-9]+)\s*(DONE)?\s*(.*)$'
   while read line; do
     if ! [[ "$line" =~ $LINE_RE ]]; then
-      echo "$line"
       echo "error: Invalid line" >&2
       return 1
     fi
@@ -205,6 +206,12 @@ todo() {
   else
     columns=3
   fi
+
+  if [[ -z "$quiet_flag" ]]; then
+    day_of_week=$(date +%a)
+    echo "Today is ${COLOR_WHITE_BOLD}${day_of_week}${COLOR_RESET}"
+  fi
+
   todo_select_before "$before" < "$TODO_PATH" | sort -k 2 | todo_pretty | column -t -l$columns -o' '
 }
 
@@ -248,7 +255,7 @@ elif [[ "$1" == "-r" ]]; then
   [[ $# -eq 1 ]] || invalid_usage
   remove "$1"
 else
-  args=$(getopt -o "fna" -- "$@") || invalid_usage
+  args=$(getopt -o "fnaq" -- "$@") || invalid_usage
   eval set -- "$args"
   while true; do
     case "$1" in
@@ -260,6 +267,9 @@ else
         shift ;;
       -a)
         show_all_flag=1
+        shift ;;
+      -q)
+        quiet_flag=1
         shift ;;
       --)
         shift
